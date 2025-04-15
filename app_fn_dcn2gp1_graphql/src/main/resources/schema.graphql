@@ -1,0 +1,77 @@
+type Usuario {
+    idUsuario: ID!
+    username: String!
+    email: String!
+    nombre: String
+    apellido: String
+    fechaCreacion: String
+    fechaModificacion: String
+    ultimoLogin: String
+    activo: Boolean!
+    roles: [Rol!]
+    logs: [LogEvento!]
+}
+
+type Rol {
+    idRol: ID!
+    nombre: String!
+    descripcion: String
+    fechaCreacion: String
+    fechaModificacion: String
+    activo: Boolean!
+    usuarios: [Usuario!]
+}
+
+type LogEvento {
+    idLog: ID!
+    fechaEvento: String!
+    idUsuario: ID
+    username: String
+    tipoEvento: String!
+    modulo: String!
+    accion: String!
+    entidad: String
+    idAfectado: ID
+    datosPrevios: String
+    datosNuevos: String
+    ipOrigen: String
+    userAgent: String
+    nivel: String
+    usuario: Usuario
+}
+
+type Query {
+    # Consultas relacionadas con usuarios
+    usuario(idUsuario: ID!): Usuario
+    usuarioPorUsername(username: String!): Usuario
+    
+    # Consultas relacionadas con roles
+    rol(idRol: ID!): Rol
+    rolPorNombre(nombre: String!): Rol
+    
+    # Consultas relacionadas con logs
+    usuariosConRol(idRol: ID!): [Usuario!]
+    usuariosConRolNombre(nombreRol: String!): [Usuario!]
+    
+    # Consultas específicas para logs
+    logsPorUsuario(idUsuario: ID!): [LogEvento!]
+    logsPorTipoEvento(tipoEvento: String!): [LogEvento!]
+    logsPorModulo(modulo: String!): [LogEvento!]
+    logsPorEntidad(entidad: String!): [LogEvento!]
+    logsPorNivel(nivel: String!): [LogEvento!]
+    logsPorRangoFechas(fechaInicio: String!, fechaFin: String!): [LogEvento!]
+    
+    # Consulta con filtros múltiples
+    logsConFiltros(
+        idUsuario: ID
+        tipoEvento: String
+        modulo: String
+        entidad: String
+        nivel: String
+        fechaInicio: String
+        fechaFin: String
+    ): [LogEvento!]
+    
+    # Estadísticas
+    estadisticasUsuarios: [Usuario!]
+}
