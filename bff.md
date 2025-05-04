@@ -1,8 +1,3 @@
-Me alegra saber que has logrado desplegar con éxito tus funciones en Azure Functions con la URL `dcn2gp1.azurewebsites.net`. Tu documentación actualizada luce muy completa y bien estructurada.
-
-Aquí tienes un archivo Markdown para el desarrollo del BFF (Backend for Frontend) que servirá como base para nuestra próxima conversación:
-
-```markdown
 # Desarrollo del Microservicio BFF para el Sistema de Gestión de Usuarios y Roles
 
 ## Introducción
@@ -26,7 +21,7 @@ El BFF será implementado como un microservicio usando Spring Boot, que actuará
 - Java 17
 - Spring Boot 3.x
 - Spring WebClient para comunicación con las funciones
-- Spring Security para autenticación (opcional)
+- Spring Security para autenticación
 
 ## Endpoints del BFF
 
@@ -101,23 +96,3 @@ public class UsuarioService {
 ## Despliegue
 
 El BFF será desplegado como un contenedor Docker, siguiendo las prácticas de CI/CD para entornos cloud native.
-
-## Próximos Pasos
-
-1. Configurar el proyecto Spring Boot
-2. Implementar las clases de modelo
-3. Desarrollar los servicios para comunicarse con las funciones
-4. Implementar los controladores REST
-5. Configurar manejo de excepciones
-6. Añadir documentación de API con Swagger
-7. Configurar y probar el despliegue
-
-## Consideraciones de Seguridad
-
-1. Implementar autenticación y autorización
-2. Proteger información sensible
-3. Validar entradas y salidas
-4. Implementar auditoría de acciones críticas
-```
-
-Ahora podemos usar este archivo como punto de partida para nuestra próxima conversación, donde implementaremos el BFF utilizando Spring Boot para orquestar las llamadas a las funciones serverless que ya has desplegado en Azure.

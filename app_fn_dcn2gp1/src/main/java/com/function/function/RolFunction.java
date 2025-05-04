@@ -4,6 +4,7 @@ import com.function.dao.RolDAO;
 import com.function.model.Response;
 import com.function.model.Rol;
 import com.function.util.GsonConfig;
+import com.function.util.EventGridPublisher;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -49,9 +50,6 @@ public class RolFunction {
         logger.info("Solicitud HTTP recibida en la Funcion de Roles");
         
         try {
-            // Obtener el ID del rol de la ruta, si existe
-            // final String id = request.getQueryParameters().get("id");
-            
             // Manejar la solicitud según el Metodo HTTP
             switch (request.getHttpMethod()) {
                 case GET:
@@ -157,6 +155,21 @@ public class RolFunction {
             // Crear el rol en la base de datos
             Rol rolCreado = rolDAO.create(rol);
             
+            // Publicar evento de creación de rol
+            Rol rolParaEvento = new Rol();
+            rolParaEvento.setIdRol(rolCreado.getIdRol());
+            rolParaEvento.setNombre(rolCreado.getNombre());
+            rolParaEvento.setDescripcion(rolCreado.getDescripcion());
+            rolParaEvento.setFechaCreacion(rolCreado.getFechaCreacion());
+
+            // En un entorno real, aquí obtendríamos la información del usuario que está realizando la acción
+            // Por ahora, enviamos un evento simplificado
+            EventGridPublisher.publishEvent(
+                "/roles/created",
+                "role_created",
+                rolParaEvento
+            );
+            
             return request.createResponseBuilder(HttpStatus.CREATED)
                     .body(gson.toJson(Response.success("Rol creado correctamente", rolCreado)))
                     .header("Content-Type", "application/json")
@@ -213,6 +226,12 @@ public class RolFunction {
                         .build();
             }
             
+            // Guardar datos previos para el evento
+            Rol datosAnteriores = new Rol();
+            datosAnteriores.setIdRol(rolExistente.get().getIdRol());
+            datosAnteriores.setNombre(rolExistente.get().getNombre());
+            datosAnteriores.setDescripcion(rolExistente.get().getDescripcion());
+            
             // Parsear el JSON de la solicitud
             JsonObject jsonRol = JsonParser.parseString(request.getBody().get()).getAsJsonObject();
             
@@ -228,6 +247,27 @@ public class RolFunction {
             
             // Actualizar el rol en la base de datos
             if (rolDAO.update(rol)) {
+                // Publicar evento de actualización de rol
+                JsonObject dataEvento = new JsonObject();
+                dataEvento.addProperty("idRol", rol.getIdRol());
+                dataEvento.addProperty("nombre", rol.getNombre());
+                dataEvento.addProperty("descripcion", rol.getDescripcion());
+                
+                // Agregar datos previos
+                JsonObject datosPreviosJson = gson.toJsonTree(datosAnteriores).getAsJsonObject();
+                dataEvento.add("datosPrevios", datosPreviosJson);
+                
+                // Agregar datos nuevos
+                JsonObject datosNuevosJson = gson.toJsonTree(rol).getAsJsonObject();
+                dataEvento.add("datosNuevos", datosNuevosJson);
+
+                // En un entorno real, aquí incluiríamos datos del usuario que realiza la acción
+                EventGridPublisher.publishEvent(
+                    "/roles/updated",
+                    "role_updated",
+                    dataEvento
+                );
+                
                 return request.createResponseBuilder(HttpStatus.OK)
                         .body(gson.toJson(Response.success("Rol actualizado correctamente", rol)))
                         .header("Content-Type", "application/json")
@@ -288,6 +328,22 @@ public class RolFunction {
             
             // Eliminar el rol (baja lógica)
             if (rolDAO.delete(rolId)) {
+                // Publicar evento de eliminación de rol
+                JsonObject dataEvento = new JsonObject();
+                dataEvento.addProperty("idRol", rolId);
+                dataEvento.addProperty("nombre", rolExistente.get().getNombre());
+                
+                // Agregar datos previos
+                JsonObject datosPreviosJson = gson.toJsonTree(rolExistente.get()).getAsJsonObject();
+                dataEvento.add("datosPrevios", datosPreviosJson);
+
+                // En un entorno real, aquí incluiríamos datos del usuario que realiza la acción
+                EventGridPublisher.publishEvent(
+                    "/roles/deleted",
+                    "role_deleted",
+                    dataEvento
+                );
+                
                 return request.createResponseBuilder(HttpStatus.OK)
                         .body(gson.toJson(Response.success("Rol eliminado correctamente", null)))
                         .header("Content-Type", "application/json")
@@ -331,9 +387,6 @@ public class RolFunction {
             final ExecutionContext context) {
         
         logger.info("Solicitud HTTP recibida para obtener usuarios de un rol");
-        
-        // Obtener el ID del rol de la ruta
-        // final String id = request.getQueryParameters().get("id");
         
         // Verificar si se proporciona un ID
         if (id == null) {

@@ -4,6 +4,7 @@ import com.function.dao.UsuarioDAO;
 import com.function.model.Response;
 import com.function.model.Usuario;
 import com.function.util.GsonConfig;
+import com.function.util.EventGridPublisher;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -48,12 +49,6 @@ public class UsuarioFunction {
         logger.info("Solicitud HTTP recibida en la funcion de Usuarios");
         
         try {
-            // Obtener el ID del usuario de la ruta, si existe
-            // final String id = request.getQueryParameters().get("id");
-            // final String id = request.getHeaders().get("x-ms-url-path-params") != null ?
-            //     request.getHeaders().get("x-ms-url-path-params").get("id") :
-            //     "none";
-            
             // Manejar la solicitud según el método HTTP
             switch (request.getHttpMethod()) {
                 case GET:
@@ -175,6 +170,21 @@ public class UsuarioFunction {
             // Crear el usuario en la base de datos
             Usuario usuarioCreado = usuarioDAO.create(usuario);
             
+            // Publicar evento de creación de usuario
+            Usuario usuarioParaEvento = new Usuario();
+            usuarioParaEvento.setIdUsuario(usuarioCreado.getIdUsuario());
+            usuarioParaEvento.setUsername(usuarioCreado.getUsername());
+            usuarioParaEvento.setEmail(usuarioCreado.getEmail());
+            usuarioParaEvento.setNombre(usuarioCreado.getNombre());
+            usuarioParaEvento.setApellido(usuarioCreado.getApellido());
+            usuarioParaEvento.setFechaCreacion(usuarioCreado.getFechaCreacion());
+
+            EventGridPublisher.publishEvent(
+                "/usuarios/created",
+                "user_created",
+                usuarioParaEvento
+            );
+            
             // No devolver el hash de contraseña en la respuesta
             usuarioCreado.setPasswordHash(null);
             
@@ -234,6 +244,14 @@ public class UsuarioFunction {
                         .build();
             }
             
+            // Guardar datos previos para el evento
+            Usuario datosAnteriores = new Usuario();
+            datosAnteriores.setIdUsuario(usuarioExistente.get().getIdUsuario());
+            datosAnteriores.setUsername(usuarioExistente.get().getUsername());
+            datosAnteriores.setEmail(usuarioExistente.get().getEmail());
+            datosAnteriores.setNombre(usuarioExistente.get().getNombre());
+            datosAnteriores.setApellido(usuarioExistente.get().getApellido());
+            
             // Parsear el JSON de la solicitud
             JsonObject jsonUsuario = JsonParser.parseString(request.getBody().get()).getAsJsonObject();
             
@@ -259,6 +277,28 @@ public class UsuarioFunction {
             
             // Actualizar el usuario en la base de datos
             if (usuarioDAO.update(usuario)) {
+                // Publicar evento de actualización de usuario
+                JsonObject eventoData = new JsonObject();
+                eventoData.addProperty("idUsuario", usuario.getIdUsuario());
+                eventoData.addProperty("username", usuario.getUsername());
+                eventoData.addProperty("email", usuario.getEmail());
+                eventoData.addProperty("nombre", usuario.getNombre());
+                eventoData.addProperty("apellido", usuario.getApellido());
+                
+                // Agregar datos previos
+                JsonObject datosPreviosJson = gson.toJsonTree(datosAnteriores).getAsJsonObject();
+                eventoData.add("datosPrevios", datosPreviosJson);
+                
+                // Agregar datos nuevos
+                JsonObject datosNuevosJson = gson.toJsonTree(usuario).getAsJsonObject();
+                eventoData.add("datosNuevos", datosNuevosJson);
+
+                EventGridPublisher.publishEvent(
+                    "/usuarios/updated",
+                    "user_updated",
+                    eventoData
+                );
+                
                 // No devolver el hash de contraseña en la respuesta
                 usuario.setPasswordHash(null);
                 
@@ -323,6 +363,23 @@ public class UsuarioFunction {
             
             // Eliminar el usuario (baja lógica)
             if (usuarioDAO.delete(userId)) {
+                // Publicar evento de eliminación de usuario
+                JsonObject eventoData = new JsonObject();
+                eventoData.addProperty("idUsuario", userId);
+                eventoData.addProperty("username", usuarioExistente.get().getUsername());
+                eventoData.addProperty("email", usuarioExistente.get().getEmail());
+                
+                // Agregar datos previos
+                JsonObject datosPreviosJson = gson.toJsonTree(usuarioExistente.get()).getAsJsonObject();
+                datosPreviosJson.remove("passwordHash"); // Eliminar datos sensibles
+                eventoData.add("datosPrevios", datosPreviosJson);
+
+                EventGridPublisher.publishEvent(
+                    "/usuarios/deleted",
+                    "user_deleted",
+                    eventoData
+                );
+                
                 return request.createResponseBuilder(HttpStatus.OK)
                         .body(gson.toJson(Response.success("Usuario eliminado correctamente", null)))
                         .header("Content-Type", "application/json")
@@ -367,9 +424,6 @@ public class UsuarioFunction {
         
         logger.info("Solicitud HTTP recibida para asignar rol a usuario");
         
-        // Obtener el ID del usuario de la ruta
-        // final String id = request.getQueryParameters().get("id");
-        
         // Verificar si se proporciona un ID
         if (id == null) {
             return request.createResponseBuilder(HttpStatus.BAD_REQUEST)
@@ -407,6 +461,28 @@ public class UsuarioFunction {
             
             // Obtener todos los roles del usuario
             List<Long> roles = usuarioDAO.getRoles(userId);
+            
+            // Obtener información del rol para el evento
+            Optional<com.function.model.Rol> rolInfo = new com.function.dao.RolDAO().findById(rolId);
+            String rolNombre = rolInfo.isPresent() ? rolInfo.get().getNombre() : "desconocido";
+
+            // Publicar evento de asignación de rol
+            JsonObject dataEvento = new JsonObject();
+            dataEvento.addProperty("idUsuario", userId);
+            dataEvento.addProperty("idRol", rolId);
+            dataEvento.addProperty("rolNombre", rolNombre);
+
+            // Obtener nombre de usuario
+            Optional<Usuario> usuarioInfo = usuarioDAO.findById(userId);
+            if (usuarioInfo.isPresent()) {
+                dataEvento.addProperty("username", usuarioInfo.get().getUsername());
+            }
+
+            EventGridPublisher.publishEvent(
+                "/usuarios/roles/assigned",
+                "role_assigned",
+                dataEvento
+            );
             
             return request.createResponseBuilder(HttpStatus.OK)
                     .body(gson.toJson(Response.success("Rol asignado correctamente", roles)))
