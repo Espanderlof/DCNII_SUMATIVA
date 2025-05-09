@@ -419,106 +419,233 @@ curl -X GET http://localhost:8090/api/roles/1/usuarios
 }
 ```
 
-## Ejemplos con Postman
+## Auditoría y Consultas GraphQL
 
-### Colección de Postman
+### 1. Consulta de auditoría por ID de usuario
 
-Para facilitar las pruebas, puedes importar la siguiente colección en Postman:
+**Solicitud:**
+```
+POST /api/auditoria
+Content-Type: application/json
 
-1. Crea una nueva colección llamada "BFF - Sistema de Gestión de Usuarios y Roles"
-2. Configura la variable de entorno `baseUrl` con el valor `http://localhost:8090/api`
-3. Añade las siguientes solicitudes:
+{
+  "query": "query { usuario(idUsuario: \"1\") { idUsuario username email nombre apellido activo roles { idRol nombre descripcion } logs { idLog fechaEvento tipoEvento modulo accion } } }"
+}
+```
 
-#### Gestión de Usuarios
+**Ejemplo con cURL:**
+```bash
+curl -X POST http://localhost:8090/api/auditoria \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "query { usuario(idUsuario: \"1\") { idUsuario username email nombre apellido activo roles { idRol nombre descripcion } logs { idLog fechaEvento tipoEvento modulo accion } } }"
+  }'
+```
 
-1. **Obtener todos los usuarios**
-   - Método: GET
-   - URL: `{{baseUrl}}/usuarios`
+**Respuesta esperada:**
+```json
+{
+  "data": {
+    "usuario": {
+      "idUsuario": "1",
+      "username": "admin",
+      "email": "admin@example.com",
+      "nombre": "Administrador",
+      "apellido": "Sistema",
+      "activo": true,
+      "roles": [
+        {
+          "idRol": "1",
+          "nombre": "ADMIN",
+          "descripcion": "Administrador con acceso completo al sistema"
+        }
+      ],
+      "logs": [
+        {
+          "idLog": "101",
+          "fechaEvento": "2025-04-28T09:15:32",
+          "tipoEvento": "LOGIN",
+          "modulo": "SEGURIDAD",
+          "accion": "Inicio de sesión exitoso"
+        },
+        {
+          "idLog": "102",
+          "fechaEvento": "2025-04-28T14:30:20",
+          "tipoEvento": "UPDATE",
+          "modulo": "USUARIOS",
+          "accion": "Actualización de perfil"
+        }
+      ]
+    }
+  }
+}
+```
 
-2. **Obtener un usuario específico**
-   - Método: GET
-   - URL: `{{baseUrl}}/usuarios/1`
+### 2. Consulta de usuario por nombre de usuario
 
-3. **Crear usuario**
-   - Método: POST
-   - URL: `{{baseUrl}}/usuarios`
-   - Body (raw JSON):
-     ```json
-     {
-       "username": "nuevo_usuario",
-       "email": "nuevo@example.com",
-       "password": "Password123",
-       "nombre": "Nuevo",
-       "apellido": "Usuario"
-     }
-     ```
+**Solicitud:**
+```
+POST /api/auditoria
+Content-Type: application/json
 
-4. **Actualizar usuario**
-   - Método: PUT
-   - URL: `{{baseUrl}}/usuarios/2`
-   - Body (raw JSON):
-     ```json
-     {
-       "username": "usuario_actualizado",
-       "email": "actualizado@example.com",
-       "nombre": "Usuario",
-       "apellido": "Actualizado"
-     }
-     ```
+{
+  "query": "query { usuarioPorUsername(username: \"admin\") { idUsuario username email nombre apellido roles { nombre } logs { fechaEvento tipoEvento accion } } }"
+}
+```
 
-5. **Eliminar usuario**
-   - Método: DELETE
-   - URL: `{{baseUrl}}/usuarios/3`
+**Ejemplo con cURL:**
+```bash
+curl -X POST http://localhost:8090/api/auditoria \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "query { usuarioPorUsername(username: \"admin\") { idUsuario username email nombre apellido roles { nombre } logs { fechaEvento tipoEvento accion } } }"
+  }'
+```
 
-6. **Asignar rol a usuario**
-   - Método: POST
-   - URL: `{{baseUrl}}/usuarios/1/roles`
-   - Body (raw JSON):
-     ```json
-     {
-       "idRol": 2
-     }
-     ```
+### 3. Consulta de usuarios por rol (ID)
 
-#### Gestión de Roles
+**Solicitud:**
+```
+POST /api/auditoria
+Content-Type: application/json
 
-1. **Obtener todos los roles**
-   - Método: GET
-   - URL: `{{baseUrl}}/roles`
+{
+  "query": "query { usuariosConRol(idRol: \"1\") { idUsuario username email nombre apellido activo roles { nombre descripcion } logs { fechaEvento tipoEvento modulo accion nivel } } }"
+}
+```
 
-2. **Obtener un rol específico**
-   - Método: GET
-   - URL: `{{baseUrl}}/roles/1`
+### 4. Consulta de usuarios por rol (nombre)
 
-3. **Crear rol**
-   - Método: POST
-   - URL: `{{baseUrl}}/roles`
-   - Body (raw JSON):
-     ```json
-     {
-       "nombre": "EDITOR",
-       "descripcion": "Editor con permisos para gestionar contenido"
-     }
-     ```
+**Solicitud:**
+```
+POST /api/auditoria
+Content-Type: application/json
 
-4. **Actualizar rol**
-   - Método: PUT
-   - URL: `{{baseUrl}}/roles/4`
-   - Body (raw JSON):
-     ```json
-     {
-       "nombre": "EDITOR_JEFE",
-       "descripcion": "Editor jefe con permisos adicionales"
-     }
-     ```
+{
+  "query": "query { usuariosConRolNombre(nombreRol: \"ADMIN\") { idUsuario username email nombre apellido activo roles { nombre descripcion } logs { fechaEvento tipoEvento modulo accion nivel } } }"
+}
+```
 
-5. **Eliminar rol**
-   - Método: DELETE
-   - URL: `{{baseUrl}}/roles/4`
+### 5. Consulta de logs por tipo de evento
 
-6. **Obtener usuarios por rol**
-   - Método: GET
-   - URL: `{{baseUrl}}/roles/1/usuarios`
+**Solicitud:**
+```
+POST /api/auditoria
+Content-Type: application/json
+
+{
+  "query": "query { logsPorTipoEvento(tipoEvento: \"LOGIN\") { idLog fechaEvento username tipoEvento modulo accion nivel } }"
+}
+```
+
+### 6. Consulta de logs por módulo
+
+**Solicitud:**
+```
+POST /api/auditoria
+Content-Type: application/json
+
+{
+  "query": "query { logsPorModulo(modulo: \"SEGURIDAD\") { idLog fechaEvento username tipoEvento accion nivel } }"
+}
+```
+
+### 7. Consulta de logs por rango de fechas
+
+**Solicitud:**
+```
+POST /api/auditoria
+Content-Type: application/json
+
+{
+  "query": "query { logsPorRangoFechas(fechaInicio: \"2025-04-01T00:00:00\", fechaFin: \"2025-04-30T23:59:59\") { idLog fechaEvento username tipoEvento modulo accion } }"
+}
+```
+
+### 8. Consulta de logs con filtros
+
+**Solicitud:**
+```
+POST /api/auditoria
+Content-Type: application/json
+
+{
+  "query": "query { logsConFiltros(tipoEvento: \"UPDATE\", modulo: \"ROLES\") { idLog fechaEvento username tipoEvento modulo accion entidad nivel } }"
+}
+```
+
+## Consultas de usuarios por rol (GraphQL)
+
+### 1. Consulta simplificada por ID de rol
+
+**Solicitud:**
+```
+POST /api/usuariosByRole
+Content-Type: application/json
+
+{
+  "variables": {
+    "idRol": "1"
+  }
+}
+```
+
+**Ejemplo con cURL:**
+```bash
+curl -X POST http://localhost:8090/api/usuariosByRole \
+  -H "Content-Type: application/json" \
+  -d '{
+    "variables": {
+      "idRol": "1"
+    }
+  }'
+```
+
+### 2. Consulta simplificada por nombre de rol
+
+**Solicitud:**
+```
+POST /api/usuariosByRole
+Content-Type: application/json
+
+{
+  "variables": {
+    "nombreRol": "ADMIN"
+  }
+}
+```
+
+### 3. Consulta personalizada sin logs
+
+**Solicitud:**
+```
+POST /api/usuariosByRole
+Content-Type: application/json
+
+{
+  "query": "query GetAdminUsers($nombreRol: String!) { usuariosConRolNombre(nombreRol: $nombreRol) { idUsuario username email nombre apellido roles { nombre descripcion } } }",
+  "variables": {
+    "nombreRol": "ADMIN"
+  },
+  "operationName": "GetAdminUsers"
+}
+```
+
+### 4. Consulta personalizada con logs
+
+**Solicitud:**
+```
+POST /api/usuariosByRole
+Content-Type: application/json
+
+{
+  "query": "query GetUsersWithLogs($idRol: ID!) { usuariosConRol(idRol: $idRol) { idUsuario username email nombre apellido logs { fechaEvento tipoEvento modulo accion nivel } } }",
+  "variables": {
+    "idRol": "1"
+  },
+  "operationName": "GetUsersWithLogs"
+}
+```
 
 ## Manejo de Errores
 
@@ -565,5 +692,22 @@ Para facilitar las pruebas, puedes importar la siguiente colección en Postman:
   "message": "Error interno del servidor",
   "data": null,
   "error": "Error al comunicarse con el servicio: Connection timed out"
+}
+```
+
+#### Error en consulta GraphQL
+
+```json
+{
+  "errors": [
+    {
+      "message": "No se puede encontrar el usuario con ID '999'",
+      "locations": [{"line": 1, "column": 9}],
+      "path": ["usuario"]
+    }
+  ],
+  "data": {
+    "usuario": null
+  }
 }
 ```
